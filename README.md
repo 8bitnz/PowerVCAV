@@ -229,6 +229,33 @@ isMigration    : False
 overallHealth  : GREEN
 ```
 
+## New-VCAVReplication
+
+Example:
+
+```PowerShell
+$splat = @{
+    sourcetype = 'vapp'
+    sourcesite = 'CCL-North-Island'
+    sourcevappId = '098d434f-a662-46f7-a9c1-850ff24ed158'
+    destinationtype = 'vcloud'
+    destinationsite = 'CCL-South-Island'
+    destinationvdc = '9def03c1-e3a6-47e2-86c8-78bb25b8d1ed'
+    destinationstorageProfile = '*'
+    description = 'Replicated VM'
+    rpo = 1440
+    dataConnectionType = 'plain'
+    quiesced = $false
+    retentionPolicynumberOfInstances = 1
+    retentionPolicydistance = 60
+    targetDiskType = 'preallocated_zeros'
+    initialSyncTime = 0
+    isMigration = $false
+}
+
+New-VCAVReplication @splat
+```
+
 ## summary-report.ps1
 
 This is an example PowerShell script which uses the PowerVCAV module to generate a report showing a summary of the vApps and VMs currently being replicated by VCAV.
