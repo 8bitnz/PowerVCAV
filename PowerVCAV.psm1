@@ -396,6 +396,129 @@ Function New-VCAVUrl {
     return $QueryString
 }
 
+Function New-VCAVReplication {
+    <#
+    .SYNOPSIS
+    Configure a new replication via the vCloud Availability (VCAV) API
+    .DESCRIPTION
+    New-VCAVReplication configures a new VM or vApp replication, returning the replication 
+    as a PSCustomObject. Uses the Invoke-VCAVQuery Function. Currently only supports vCloud Director
+    site to site replication and only VM replications (see Examples).
+    .PARAMETER SourcevAppID
+    The vCD GUID of the VM
+    .OUTPUTS
+    A PSCustomObject containing the resources from the API call or an error.
+    .EXAMPLE
+    Retrieve a list of VCAV sites:
+    New-VCAVReplication -QueryPath 'sites'
+    .EXAMPLE
+    Retrieve a list of VCAV sites:
+    New-VCAVReplication -QueryPath 'sites'
+    .NOTES
+    
+    #>
+        [CmdletBinding()]
+        param(
+            [Parameter(Mandatory=$true)][ValidateSet('vcvm','vm','vapp')][string]$sourcetype,
+            [Parameter(Mandatory=$true)][string]$sourcesite,
+            [Parameter(Mandatory=$true,ValueFromPipeline=$true)][string]$sourcevappId,
+            [Parameter(Mandatory=$true)][ValidateSet('vc','vcloud','vm','vapp')][string]$destinationtype,
+            [Parameter()][string]$destinationsite,
+            [Parameter()][string]$destinationvdc,
+            [Parameter()][string]$destinationstorageProfile = '*',
+            [Parameter()][string]$description = '',
+            [Parameter()][int32]$rpo = 1440,
+            [Parameter()][ValidateSet('plain','encrypted','encrypted_compressed')][string]$dataConnectionType = 'plain',
+            [Parameter()][bool]$quiesced = $false,
+            [Parameter()][int32]$retentionPolicynumberOfInstances = 1,
+            [Parameter()][int32]$retentionPolicydistance = 60,
+            [Parameter()][ValidateSet('thin', 'preallocated', 'preallocated_zeros')][string]$targetDiskType = 'preallocated_zeros',
+            [Parameter()][datetime]$initialSyncTime = 0,
+            [Parameter()][bool]$isMigration = $false,
+            [Parameter()][switch]$mydebug = $false
+        )
+    
+        if ($PSCmdlet.SessionState.PSVariable.GetValue('VCAVIsConnected') -ne $true) # Not authenticated to API
+        { Write-Error ("Not connected to VCAV API, authenticate first with Connect-VCAV"); Break }
+        
+        #Build url body 
+    
+        [hashtable]$source = @{
+            type   = $sourcetype
+            site   = $sourcesite
+            vappid = $sourcevappId
+        }
+    
+        [hashtable]$destination = @{
+            type = $destinationtype
+            site = $destinationsite
+            vdc  = $destinationvdc
+            storageprofile = $destinationstorageProfile
+        }
+    
+        [hashtable]$retentionpolicy = @{
+            rules = $retentionpolicyrule
+        }
+    
+        [hashtable]$retentionpolicyrule = @{
+            numberOfInstances = $retentionPolicynumberOfInstances
+            distance = $retentionPolicydistance
+        }
+    
+        [hashtable]$body = @{
+            source = $source
+            destination = $destination
+            description = $description
+            rpo = $rpo
+            dataConnectionType = $dataConnectionType
+            quiesced = $quiesced
+            retentionPolicy = $retentionpolicy
+            targetDiskType = $targetDiskType
+            initialSyncTime = $initialSyncTime
+            isMigration = $isMigration
+        }
+    
+        $json_body = convertto-json -InputObject $body -Depth 4
+    
+        if($mydebug){
+            Write-Output '[VERBOSE] Message body contains :'
+            Write-Output $body
+            Write-Output '[VERBOSE] JSON :'
+            Write-Output $json_body
+        }
+    
+        $UriParams = @{
+            QueryPath = 'vapp-replications'
+        }
+    
+        $uri = New-VCAVUrl @UriParams
+    
+        $Headers = @{ } 
+        $Token = $PSCmdlet.SessionState.PSVariable.GetValue('VCAVToken')
+    
+        if ($Token -is [array]) { $Token = $Token[0] }
+        $Headers.Add('X-VCAV-Auth', $Token)
+        $Headers.Add('Accept', 'application/vnd.vmware.h4-v3+json;charset=UTF-8')
+        $Headers.Add('ContentType', 'application/json')
+    
+        $InvokeParams = @{
+            Method    = 'POST'
+            Body      = $json_body
+            Uri       = $uri  
+            Headers   = $Headers
+        }
+    
+        Try {
+            $result = Invoke-RestMethod @InvokeParams -ErrorAction Stop
+            return $result
+        }
+        Catch {
+            Write-Error ("vCloud Availability API error: $($_.Exception.Message)")
+            }
+            Break
+        }
+    }
+
 # Export the public functions from this module to the environment:
 Export-ModuleMember -Function Connect-VCAV
 Export-ModuleMember -Function Disconnect-VCAV
@@ -403,3 +526,4 @@ Export-ModuleMember -Function Connect-VCAVExtend
 Export-ModuleMember -Function Invoke-VCAVQuery
 Export-ModuleMember -Function Invoke-VCAVPagedQuery
 Export-ModuleMember -Function Get-VCAVToken
+Export-ModuleMember -Function New-VCAVReplication
