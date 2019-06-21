@@ -288,7 +288,7 @@ Thus report can easily be tailored to requirements by editing the summary-report
 
 ## vm-report.ps1
 
-This is an example PowerShell screipt which uses the PowerVCAV module to generate a report showing detailed VM replication information from the VCAV API:
+This is an example PowerShell script which uses the PowerVCAV module to generate a report showing detailed VM replication information from the VCAV API:
 
 Example:
 

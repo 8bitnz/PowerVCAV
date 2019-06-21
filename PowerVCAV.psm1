@@ -402,18 +402,29 @@ Function New-VCAVReplication {
     Configure a new replication via the vCloud Availability (VCAV) API
     .DESCRIPTION
     New-VCAVReplication configures a new VM or vApp replication, returning the replication 
-    as a PSCustomObject. Uses the Invoke-VCAVQuery Function. Currently only supports vCloud Director
+    as a PSCustomObject. Currently only supports vCloud Director
     site to site replication and only VM replications (see Examples).
-    .PARAMETER SourcevAppID
+    .PARAMETER SourceType
+    One of 'vcvm','vm','vapp'
+    .PARAMETER SourceSite
+    The name of the source site
+    .PARAMETER SourcevAppId
     The vCD GUID of the VM
+    .PARAMETER DestinationType
+    One of 'vc','vcloud','vm','vapp'
+    .PARAMETER DestinationSite
+    The name of the destination site
+    .PARAMETER DestinationVDC
+    VCD ID of the Destination VDC
+    .PARAMETER DestinationStorageProfile
+    VCD ID of the Destination Storage Profile
     .OUTPUTS
     A PSCustomObject containing the resources from the API call or an error.
     .EXAMPLE
-    Retrieve a list of VCAV sites:
-    New-VCAVReplication -QueryPath 'sites'
-    .EXAMPLE
-    Retrieve a list of VCAV sites:
-    New-VCAVReplication -QueryPath 'sites'
+    Create a new vApp replication betwen vCloud Director sites
+    New-VCAVReplication -SourceType 'vApp' -SourceSite 'site1' -SourcevAppID 'd3d9210c-8da3-4c34-a8df-9427525a6a51'
+    -DestinationType 'vCloud' -DestinationSite 'site2' - DestinationVDC '961ef39a-ee13-4e29-b404-7d7c8c33916a' 
+    -DestinationStorageProfile 'c02d84c0-9680-44f1-84fd-7499be30e600'
     .NOTES
     
     #>
@@ -423,9 +434,9 @@ Function New-VCAVReplication {
             [Parameter(Mandatory=$true)][string]$sourcesite,
             [Parameter(Mandatory=$true,ValueFromPipeline=$true)][string]$sourcevappId,
             [Parameter(Mandatory=$true)][ValidateSet('vc','vcloud','vm','vapp')][string]$destinationtype,
-            [Parameter()][string]$destinationsite,
-            [Parameter()][string]$destinationvdc,
-            [Parameter()][string]$destinationstorageProfile = '*',
+            [Parameter(Mandatory=$true)][string]$destinationsite,
+            [Parameter(Mandatory=$true)][string]$destinationvdc,
+            [Parameter(Mandatory=$true)][string]$destinationstorageProfile,
             [Parameter()][string]$description = '',
             [Parameter()][int32]$rpo = 1440,
             [Parameter()][ValidateSet('plain','encrypted','encrypted_compressed')][string]$dataConnectionType = 'plain',
@@ -433,16 +444,31 @@ Function New-VCAVReplication {
             [Parameter()][int32]$retentionPolicynumberOfInstances = 1,
             [Parameter()][int32]$retentionPolicydistance = 60,
             [Parameter()][ValidateSet('thin', 'preallocated', 'preallocated_zeros')][string]$targetDiskType = 'preallocated_zeros',
-            [Parameter()][datetime]$initialSyncTime = 0,
-            [Parameter()][bool]$isMigration = $false,
-            [Parameter()][switch]$mydebug = $false
+            [Parameter()][datetime]$initialSyncTime = '1970-01-01T00:00:00',
+            [Parameter()][bool]$isMigration = $false
         )
     
         if ($PSCmdlet.SessionState.PSVariable.GetValue('VCAVIsConnected') -ne $true) # Not authenticated to API
         { Write-Error ("Not connected to VCAV API, authenticate first with Connect-VCAV"); Break }
         
+        #Test valid source site name
+
+        #Test valid source vapp name
+
+        #Test valid destination OrgVDC
+        $result = Get-OrgVDC -Id "urn:vcloud:vdc:$destinationvdc"
+        if (!$result) 
+        { Write-Error ( "Invalid Organistation VDC ID : $destinationvdc"); Break }
+
+        #Test valid destination OrgVDC Storage Policy
+        if ($result.ExtensionData.VdcStorageProfiles.VdcStorageProfile.ID -notcontains $destinationstorageProfile)
+        { Write-Error ( "The Organsiation VDC does not contain a storage policy matching : $destinationstorageprofile"); Break } 
+
+        #Test valid destination site name
+
+        
+
         #Build url body 
-    
         [hashtable]$source = @{
             type   = $sourcetype
             site   = $sourcesite
@@ -480,12 +506,9 @@ Function New-VCAVReplication {
     
         $json_body = convertto-json -InputObject $body -Depth 4
     
-        if($mydebug){
-            Write-Output '[VERBOSE] Message body contains :'
-            Write-Output $body
-            Write-Output '[VERBOSE] JSON :'
-            Write-Output $json_body
-        }
+
+        Write-Verbose ("Message body contains : $body")
+        Write-Verbose ("JSON : ' $json_body") 
     
         $UriParams = @{
             QueryPath = 'vapp-replications'
@@ -494,29 +517,33 @@ Function New-VCAVReplication {
         $uri = New-VCAVUrl @UriParams
     
         $Headers = @{ } 
-        $Token = $PSCmdlet.SessionState.PSVariable.GetValue('VCAVToken')
+        $Token = Get-VCAVToken
     
         if ($Token -is [array]) { $Token = $Token[0] }
         $Headers.Add('X-VCAV-Auth', $Token)
         $Headers.Add('Accept', 'application/vnd.vmware.h4-v3+json;charset=UTF-8')
-        $Headers.Add('ContentType', 'application/json')
+
     
         $InvokeParams = @{
             Method    = 'POST'
             Body      = $json_body
             Uri       = $uri  
             Headers   = $Headers
+            ContentType = 'application/json'
         }
-    
+ 
+        Write-Verbose ("Calling API with parameters : $InvokeParams")
+
         Try {
             $result = Invoke-RestMethod @InvokeParams -ErrorAction Stop
             return $result
         }
         Catch {
             Write-Error ("vCloud Availability API error: $($_.Exception.Message)")
+            Write-Verbose "$_"
             }
             Break
-        }
+
     }
 
 # Export the public functions from this module to the environment:
