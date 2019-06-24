@@ -12,6 +12,10 @@
 # Date:         1st June 2019
 # Version:      0.2.2
 #
+# Updated Alex Smith 
+# Date:         24th June 2019
+# Version:      0.3.0
+# Change:       Adding functions for managing replicaitons
 
 Function Connect-VCAV {
 <#
@@ -396,6 +400,47 @@ Function New-VCAVUrl {
     return $QueryString
 }
 
+#internal functions to Test function input.
+Function Test-VCAVSiteName {
+    [CmdletBinding()]
+    param()
+
+    #Invoke-VCAVQuery -QueryPath 'sites'
+}
+
+#Test valid destination site name
+Function Test-VCAVDestName {
+    [CmdletBinding()]
+    param()
+}
+
+        
+#Test valid source vapp name
+Function Test-VCAVvCDvAppID {
+    [CmdletBinding()]
+    param()
+}
+
+#Test valid destination OrgVDC
+Function Test-VCAVDestOrgVDC {
+    [CmdletBinding()]
+    param()
+
+    $result = Get-OrgVDC -Id "urn:vcloud:vdc:$destinationvdc"
+    if (!$result) 
+    { Write-Error ( "Invalid Organistation VDC ID : $destinationvdc"); Break }
+}
+
+#Test valid destination OrgVDC Storage Policy
+Function Test-VCAVDestOrgVDCStoragePolicy {
+    [CmdletBinding()]
+    param()
+
+    if ($result.ExtensionData.VdcStorageProfiles.VdcStorageProfile.ID -notcontains $destinationstorageProfile)
+    { Write-Error ( "The Organsiation VDC does not contain a storage policy matching : $destinationstorageprofile"); Break }     
+}
+
+
 Function New-VCAVReplication {
     <#
     .SYNOPSIS
@@ -452,19 +497,22 @@ Function New-VCAVReplication {
         { Write-Error ("Not connected to VCAV API, authenticate first with Connect-VCAV"); Break }
         
         #Test valid source site name
-
+        #Test-VCAVSiteName
         #Test valid source vapp name
-
+        #Test-VCAVvCDvAppID
         #Test valid destination OrgVDC
+        #Test-VCAVDestOrgVDC
         $result = Get-OrgVDC -Id "urn:vcloud:vdc:$destinationvdc"
         if (!$result) 
         { Write-Error ( "Invalid Organistation VDC ID : $destinationvdc"); Break }
 
         #Test valid destination OrgVDC Storage Policy
+        #Test-VCAVDestOrgVDCStoragePolicy
         if ($result.ExtensionData.VdcStorageProfiles.VdcStorageProfile.ID -notcontains $destinationstorageProfile)
         { Write-Error ( "The Organsiation VDC does not contain a storage policy matching : $destinationstorageprofile"); Break } 
 
         #Test valid destination site name
+        #Test-VCAVDestName
 
         
 
