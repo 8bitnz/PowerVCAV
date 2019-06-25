@@ -400,44 +400,74 @@ Function New-VCAVUrl {
     return $QueryString
 }
 
-#internal functions to Test function input.
+# Internal functions to Test function input
+# 
 Function Test-VCAVSiteName {
     [CmdletBinding()]
-    param()
+    param(
+        [Parameter()][string]$SiteName
+    )
 
     #Invoke-VCAVQuery -QueryPath 'sites'
+    #/sites is an undocumented API endpoint
+    $result = (Invoke-VCAVQuery -QueryPath 'sites').site
+    if ($result -ne $SiteName) 
+    { Write-Error ( "Invalid Site Name : $SiteName");return $false}
+    
+    return $true
 }
-
-#Test valid destination site name
-Function Test-VCAVDestName {
-    [CmdletBinding()]
-    param()
-}
-
         
-#Test valid source vapp name
-Function Test-VCAVvCDvAppID {
+# Test valid source vapp name
+# Fails if more than one result is returned
+# Returns the ID, which is required by the vCAV API
+Function Test-VCAVvCDvApp {
     [CmdletBinding()]
-    param()
+    param(
+        [Parameter()][string]$vAppName
+    ) 
+
+    $result = Get-CIvApp -Name $vAppName -ErrorAction SilentlyContinue
+
+    if (!$result) { Write-Error ( "Invalid vApp Name : $vAppName" ); return $false }
+
+    if ($result.count -ne 1){ Write-Error ( "vApp Name is not unique : $($result.name)" ); return $false }
+
+    return $result.id.Substring(16)
+
 }
 
-#Test valid destination OrgVDC
+# Test valid destination OrgVDC
+# Returns the ID, which is required by the vCAV API
 Function Test-VCAVDestOrgVDC {
     [CmdletBinding()]
-    param()
+    param(
+        [Parameter()][string]$DestinationVdc
+    )
 
-    $result = Get-OrgVDC -Id "urn:vcloud:vdc:$destinationvdc"
-    if (!$result) 
-    { Write-Error ( "Invalid Organistation VDC ID : $destinationvdc"); Break }
+    $result = Get-OrgVdc -Name $DestinationVdc -ErrorAction SilentlyContinue
+
+    if ($result.name -ne $DestinationVdc) 
+    { Write-Error ( "Invalid Organistation VDC : $DestinationVdc"); return $false }
+
+    return ($result.Id.Substring(15))    
+
 }
 
 #Test valid destination OrgVDC Storage Policy
+# Returns the ID, which is required by the vCAV API
 Function Test-VCAVDestOrgVDCStoragePolicy {
     [CmdletBinding()]
-    param()
+    param(
+        [Parameter()][string]$DestinationStorageProfile,
+        [Parameter()][string]$DestinationVdcId
+    )
 
-    if ($result.ExtensionData.VdcStorageProfiles.VdcStorageProfile.ID -notcontains $destinationstorageProfile)
-    { Write-Error ( "The Organsiation VDC does not contain a storage policy matching : $destinationstorageprofile"); Break }     
+    $result = Get-OrgVdc -Id "urn:vcloud:vdc:$DestinationVdcId" -ErrorAction SilentlyContinue
+
+    if ($result.ExtensionData.VdcStorageProfiles.VdcStorageProfile.Name -notcontains $DestinationStorageProfile)
+    { Write-Error ( "The Organsiation VDC does not contain a storage policy matching : $DestinationStorageProfile"); return $false }     
+
+    return ($result.ExtensionData.VdcStorageProfiles.VdcStorageProfile | Where-Object Name -EQ $DestinationStorageProfile).id.Substring(29)  
 }
 
 
@@ -496,26 +526,26 @@ Function New-VCAVReplication {
         if ($PSCmdlet.SessionState.PSVariable.GetValue('VCAVIsConnected') -ne $true) # Not authenticated to API
         { Write-Error ("Not connected to VCAV API, authenticate first with Connect-VCAV"); Break }
         
-        #Test valid source site name
-        #Test-VCAVSiteName
+        #Test valid site name, could be more efficient 
+        if ((Test-VCAVSiteName -SiteName $sourcesite) -ne $true) 
+        { Write-Error ("Invalid Site Name $sourcesite"); Break }
+
+        if ((Test-VCAVSiteName -SiteName $destinationsite) -ne $true) 
+        { Write-Error ("Invalid Site Name $destinationsite"); Break }
+        
         #Test valid source vapp name
         #Test-VCAVvCDvAppID
         #Test valid destination OrgVDC
         #Test-VCAVDestOrgVDC
         $result = Get-OrgVDC -Id "urn:vcloud:vdc:$destinationvdc"
-        if (!$result) 
+        if ($result -ne $true) 
         { Write-Error ( "Invalid Organistation VDC ID : $destinationvdc"); Break }
 
         #Test valid destination OrgVDC Storage Policy
         #Test-VCAVDestOrgVDCStoragePolicy
         if ($result.ExtensionData.VdcStorageProfiles.VdcStorageProfile.ID -notcontains $destinationstorageProfile)
         { Write-Error ( "The Organsiation VDC does not contain a storage policy matching : $destinationstorageprofile"); Break } 
-
-        #Test valid destination site name
-        #Test-VCAVDestName
-
-        
-
+    
         #Build url body 
         [hashtable]$source = @{
             type   = $sourcetype
@@ -554,7 +584,6 @@ Function New-VCAVReplication {
     
         $json_body = convertto-json -InputObject $body -Depth 4
     
-
         Write-Verbose ("Message body contains : $body")
         Write-Verbose ("JSON : ' $json_body") 
     
