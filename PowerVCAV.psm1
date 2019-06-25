@@ -410,9 +410,9 @@ Function Test-VCAVSiteName {
 
     #Invoke-VCAVQuery -QueryPath 'sites'
     #/sites is an undocumented API endpoint
-    $result = (Invoke-VCAVQuery -QueryPath 'sites').site
-    if ($result -ne $SiteName) 
-    { Write-Error ( "Invalid Site Name : $SiteName");return $false}
+    $result = (Invoke-VCAVQuery -QueryPath 'sites') | Where-Object {$_.site -like $SiteName}
+    if (!$result) 
+    { Write-Error ( "Invalid Site Name : $SiteName"); return $false}
     
     return $true
 }
@@ -484,22 +484,22 @@ Function New-VCAVReplication {
     .PARAMETER SourceSiteName
     The name of the source site
     .PARAMETER SourcevAppName
-    The vCD GUID of the VM
+    The name of the vapp
     .PARAMETER DestinationType
     One of 'vc','vcloud','vm','vapp'
     .PARAMETER DestinationSiteName
     The name of the destination site
     .PARAMETER DestinationVDCName
-    VCD ID of the Destination VDC
+    The name of the Destination VDC
     .PARAMETER DestinationStorageProfileName
-    VCD ID of the Destination Storage Profile
+    The name of the Destination Storage Profile
     .OUTPUTS
     A PSCustomObject containing the resources from the API call or an error.
     .EXAMPLE
     Create a new vApp replication betwen vCloud Director sites
-    New-VCAVReplication -SourceType 'vApp' -SourceSite 'site1' -SourcevAppID 'd3d9210c-8da3-4c34-a8df-9427525a6a51'
-    -DestinationType 'vCloud' -DestinationSite 'site2' - DestinationVDC '961ef39a-ee13-4e29-b404-7d7c8c33916a' 
-    -DestinationStorageProfile 'c02d84c0-9680-44f1-84fd-7499be30e600'
+    New-VCAVReplication -SourceType 'vApp' -SourceSite 'site1' -SourcevAppName 'MyvApp'
+    -DestinationType 'vCloud' -DestinationSite 'site2' - DestinationVDC 'My Org VDC' 
+    -DestinationStorageProfile 'My Storage Profile'
     .NOTES
     
     #>
@@ -523,8 +523,8 @@ Function New-VCAVReplication {
             [Parameter()][bool]$isMigration = $false
         )
     
-        if ($PSCmdlet.SessionState.PSVariable.GetValue('VCAVIsConnected') -ne $true) # Not authenticated to API
-        { Write-Error ("Not connected to VCAV API, authenticate first with Connect-VCAV"); Break }
+        #if ($PSCmdlet.SessionState.PSVariable.GetValue('VCAVIsConnected') -ne $true) # Not authenticated to API
+        #{ Write-Error ("Not connected to VCAV API, authenticate first with Connect-VCAV"); Break }
         
         #Test valid site name, could be more efficient 
         $result = Test-VCAVSiteName -SiteName $sourcesite
