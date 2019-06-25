@@ -481,17 +481,17 @@ Function New-VCAVReplication {
     site to site replication and only VM replications (see Examples).
     .PARAMETER SourceType
     One of 'vcvm','vm','vapp'
-    .PARAMETER SourceSite
+    .PARAMETER SourceSiteName
     The name of the source site
-    .PARAMETER SourcevAppId
+    .PARAMETER SourcevAppName
     The vCD GUID of the VM
     .PARAMETER DestinationType
     One of 'vc','vcloud','vm','vapp'
-    .PARAMETER DestinationSite
+    .PARAMETER DestinationSiteName
     The name of the destination site
-    .PARAMETER DestinationVDC
+    .PARAMETER DestinationVDCName
     VCD ID of the Destination VDC
-    .PARAMETER DestinationStorageProfile
+    .PARAMETER DestinationStorageProfileName
     VCD ID of the Destination Storage Profile
     .OUTPUTS
     A PSCustomObject containing the resources from the API call or an error.
@@ -507,11 +507,11 @@ Function New-VCAVReplication {
         param(
             [Parameter(Mandatory=$true)][ValidateSet('vcvm','vm','vapp')][string]$sourcetype,
             [Parameter(Mandatory=$true)][string]$sourcesite,
-            [Parameter(Mandatory=$true,ValueFromPipeline=$true)][string]$sourcevappId,
+            [Parameter(Mandatory=$true,ValueFromPipeline=$true)][string]$sourcevappname,
             [Parameter(Mandatory=$true)][ValidateSet('vc','vcloud','vm','vapp')][string]$destinationtype,
             [Parameter(Mandatory=$true)][string]$destinationsite,
-            [Parameter(Mandatory=$true)][string]$destinationvdc,
-            [Parameter(Mandatory=$true)][string]$destinationstorageProfile,
+            [Parameter(Mandatory=$true)][string]$destinationvdcname,
+            [Parameter(Mandatory=$true)][string]$destinationstorageProfilename,
             [Parameter()][string]$description = '',
             [Parameter()][int32]$rpo = 1440,
             [Parameter()][ValidateSet('plain','encrypted','encrypted_compressed')][string]$dataConnectionType = 'plain',
@@ -527,25 +527,29 @@ Function New-VCAVReplication {
         { Write-Error ("Not connected to VCAV API, authenticate first with Connect-VCAV"); Break }
         
         #Test valid site name, could be more efficient 
-        if ((Test-VCAVSiteName -SiteName $sourcesite) -ne $true) 
+        $result = Test-VCAVSiteName -SiteName $sourcesite
+        if (( $result) -eq $false) 
         { Write-Error ("Invalid Site Name $sourcesite"); Break }
 
-        if ((Test-VCAVSiteName -SiteName $destinationsite) -ne $true) 
+        $result = Test-VCAVSiteName -SiteName $destinationsite
+        if (($result) -eq $false) 
         { Write-Error ("Invalid Site Name $destinationsite"); Break }
         
         #Test valid source vapp name
-        #Test-VCAVvCDvAppID
+        $sourcevappid = Test-VCAVvCDvApp -vAppName $sourcevappname
+        if (($sourcevappid) -eq $false) 
+        { Write-Error ("Invalid vApp Name $sourcevappname"); Break }
+        
         #Test valid destination OrgVDC
-        #Test-VCAVDestOrgVDC
-        $result = Get-OrgVDC -Id "urn:vcloud:vdc:$destinationvdc"
-        if ($result -ne $true) 
-        { Write-Error ( "Invalid Organistation VDC ID : $destinationvdc"); Break }
-
+        $destinationvdc = Test-VCAVDestOrgVDC -DestinationVdc $destinationvdcname
+        if (($destinationvdc) -eq $false) 
+        { Write-Error ("Invalid Organisation VDC Name $destinationvdcname"); Break }
+        
         #Test valid destination OrgVDC Storage Policy
-        #Test-VCAVDestOrgVDCStoragePolicy
-        if ($result.ExtensionData.VdcStorageProfiles.VdcStorageProfile.ID -notcontains $destinationstorageProfile)
-        { Write-Error ( "The Organsiation VDC does not contain a storage policy matching : $destinationstorageprofile"); Break } 
-    
+        $destinationstorageProfile = Test-VCAVDestOrgVDCStoragePolicy -DestinationStorageProfile $destinationstorageProfilename -DestinationVdcId $destinationvdc
+        if (($destinationstorageProfile) -eq $false) 
+        { Write-Error ("Invalid Storage Profile Name $destinationstorageProfile"); Break }
+
         #Build url body 
         [hashtable]$source = @{
             type   = $sourcetype
@@ -612,7 +616,7 @@ Function New-VCAVReplication {
         Write-Verbose ("Calling API with parameters : $InvokeParams")
 
         Try {
-            $result = Invoke-RestMethod @InvokeParams -ErrorAction Stop
+            $result = #Invoke-RestMethod @InvokeParams -ErrorAction Stop
             return $result
         }
         Catch {
