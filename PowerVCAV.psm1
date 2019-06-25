@@ -471,7 +471,7 @@ Function Test-VCAVDestOrgVDCStoragePolicy {
 }
 
 
-Function New-VCAVReplication {
+Function Enable-VCAVReplication {
     <#
     .SYNOPSIS
     Configure a new replication via the vCloud Availability (VCAV) API
@@ -616,7 +616,7 @@ Function New-VCAVReplication {
     
             Write-Verbose ("Calling API with parameters : $InvokeParams")
         }
-        
+
         process {
             Try {
                 $result = Invoke-RestMethod @InvokeParams -ErrorAction Stop
@@ -631,6 +631,46 @@ Function New-VCAVReplication {
 
     }
 
+
+function Disable-VCAVReplication {
+    <#
+    .SYNOPSIS
+    Stops replication via the vCloud Availability (VCAV) API
+    .DESCRIPTION
+    Disable-VCAVReplication removes a VM or vApp replication, returning the replication 
+    as a PSCustomObject. Currently only supports vCloud Director
+    site to site replication and only VM replications (see Examples).
+    .PARAMETER vApp
+    The name of the replicated vApp
+    .OUTPUTS
+    A PSCustomObject containing the resources from the API call or an error.
+    .EXAMPLE
+    Disable an existing replication betwen vCloud Director sites
+    Disable-VCAVReplication -vApp 'MyVapp'
+    .NOTES
+    #>
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory=$true)][string]$vAppName
+    )
+    
+    begin {
+    }
+    
+    process {
+        $result = Invoke-VCAVQuery -QueryPath 'replications' -Filter @{vappName=$vAppName}
+        if (!$result){}
+
+
+
+    }
+    
+    end {
+    }
+}
+
+
 # Export the public functions from this module to the environment:
 Export-ModuleMember -Function Connect-VCAV
 Export-ModuleMember -Function Disconnect-VCAV
@@ -639,3 +679,4 @@ Export-ModuleMember -Function Invoke-VCAVQuery
 Export-ModuleMember -Function Invoke-VCAVPagedQuery
 Export-ModuleMember -Function Get-VCAVToken
 Export-ModuleMember -Function New-VCAVReplication
+Export-ModuleMember -Function Disable-VCAVReplication
