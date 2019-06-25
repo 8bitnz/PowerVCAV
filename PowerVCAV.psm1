@@ -503,7 +503,7 @@ Function New-VCAVReplication {
     .NOTES
     
     #>
-        [CmdletBinding()]
+        [CmdletBinding(SupportsShouldProcess=$False)]
         param(
             [Parameter(Mandatory=$true)][ValidateSet('vcvm','vm','vapp')][string]$sourcetype,
             [Parameter(Mandatory=$true)][string]$sourcesite,
@@ -523,107 +523,111 @@ Function New-VCAVReplication {
             [Parameter()][bool]$isMigration = $false
         )
     
-        #if ($PSCmdlet.SessionState.PSVariable.GetValue('VCAVIsConnected') -ne $true) # Not authenticated to API
-        #{ Write-Error ("Not connected to VCAV API, authenticate first with Connect-VCAV"); Break }
-        
-        #Test valid site name, could be more efficient 
-        $result = Test-VCAVSiteName -SiteName $sourcesite
-        if (( $result) -eq $false) 
-        { Write-Error ("Invalid Site Name $sourcesite"); Break }
+        begin {
+            if ($PSCmdlet.SessionState.PSVariable.GetValue('VCAVIsConnected') -ne $true) # Not authenticated to API
+            { Write-Error ("Not connected to VCAV API, authenticate first with Connect-VCAV"); Break }
+            
+            #Test valid site name, could be more efficient 
+            $result = Test-VCAVSiteName -SiteName $sourcesite
+            if (( $result) -eq $false) 
+            { Write-Error ("Invalid Site Name $sourcesite"); Break }
 
-        $result = Test-VCAVSiteName -SiteName $destinationsite
-        if (($result) -eq $false) 
-        { Write-Error ("Invalid Site Name $destinationsite"); Break }
-        
-        #Test valid source vapp name
-        $sourcevappid = Test-VCAVvCDvApp -vAppName $sourcevappname
-        if (($sourcevappid) -eq $false) 
-        { Write-Error ("Invalid vApp Name $sourcevappname"); Break }
-        
-        #Test valid destination OrgVDC
-        $destinationvdc = Test-VCAVDestOrgVDC -DestinationVdc $destinationvdcname
-        if (($destinationvdc) -eq $false) 
-        { Write-Error ("Invalid Organisation VDC Name $destinationvdcname"); Break }
-        
-        #Test valid destination OrgVDC Storage Policy
-        $destinationstorageProfile = Test-VCAVDestOrgVDCStoragePolicy -DestinationStorageProfile $destinationstorageProfilename -DestinationVdcId $destinationvdc
-        if (($destinationstorageProfile) -eq $false) 
-        { Write-Error ("Invalid Storage Profile Name $destinationstorageProfile"); Break }
+            $result = Test-VCAVSiteName -SiteName $destinationsite
+            if (($result) -eq $false) 
+            { Write-Error ("Invalid Site Name $destinationsite"); Break }
+            
+            #Test valid source vapp name
+            $sourcevappid = Test-VCAVvCDvApp -vAppName $sourcevappname
+            if (($sourcevappid) -eq $false) 
+            { Write-Error ("Invalid vApp Name $sourcevappname"); Break }
+            
+            #Test valid destination OrgVDC
+            $destinationvdc = Test-VCAVDestOrgVDC -DestinationVdc $destinationvdcname
+            if (($destinationvdc) -eq $false) 
+            { Write-Error ("Invalid Organisation VDC Name $destinationvdcname"); Break }
+            
+            #Test valid destination OrgVDC Storage Policy
+            $destinationstorageProfile = Test-VCAVDestOrgVDCStoragePolicy -DestinationStorageProfile $destinationstorageProfilename -DestinationVdcId $destinationvdc
+            if (($destinationstorageProfile) -eq $false) 
+            { Write-Error ("Invalid Storage Profile Name $destinationstorageProfile"); Break }
 
-        #Build url body 
-        [hashtable]$source = @{
-            type   = $sourcetype
-            site   = $sourcesite
-            vappid = $sourcevappId
-        }
-    
-        [hashtable]$destination = @{
-            type = $destinationtype
-            site = $destinationsite
-            vdc  = $destinationvdc
-            storageprofile = $destinationstorageProfile
-        }
-    
-        [hashtable]$retentionpolicy = @{
-            rules = $retentionpolicyrule
-        }
-    
-        [hashtable]$retentionpolicyrule = @{
-            numberOfInstances = $retentionPolicynumberOfInstances
-            distance = $retentionPolicydistance
-        }
-    
-        [hashtable]$body = @{
-            source = $source
-            destination = $destination
-            description = $description
-            rpo = $rpo
-            dataConnectionType = $dataConnectionType
-            quiesced = $quiesced
-            retentionPolicy = $retentionpolicy
-            targetDiskType = $targetDiskType
-            initialSyncTime = $initialSyncTime
-            isMigration = $isMigration
-        }
-    
-        $json_body = convertto-json -InputObject $body -Depth 4
-    
-        Write-Verbose ("Message body contains : $body")
-        Write-Verbose ("JSON : ' $json_body") 
-    
-        $UriParams = @{
-            QueryPath = 'vapp-replications'
-        }
-    
-        $uri = New-VCAVUrl @UriParams
-    
-        $Headers = @{ } 
-        $Token = Get-VCAVToken
-    
-        if ($Token -is [array]) { $Token = $Token[0] }
-        $Headers.Add('X-VCAV-Auth', $Token)
-        $Headers.Add('Accept', 'application/vnd.vmware.h4-v3+json;charset=UTF-8')
-
-    
-        $InvokeParams = @{
-            Method    = 'POST'
-            Body      = $json_body
-            Uri       = $uri  
-            Headers   = $Headers
-            ContentType = 'application/json'
-        }
- 
-        Write-Verbose ("Calling API with parameters : $InvokeParams")
-
-        Try {
-            $result = #Invoke-RestMethod @InvokeParams -ErrorAction Stop
-            return $result
-        }
-        Catch {
-            Write-Error ("vCloud Availability API error: $($_.Exception.Message)")
-            Write-Verbose "$_"
+            #Build url body 
+            [hashtable]$source = @{
+                type   = $sourcetype
+                site   = $sourcesite
+                vappid = $sourcevappId
             }
-            Break
+        
+            [hashtable]$destination = @{
+                type = $destinationtype
+                site = $destinationsite
+                vdc  = $destinationvdc
+                storageprofile = $destinationstorageProfile
+            }
+        
+            [hashtable]$retentionpolicy = @{
+                rules = $retentionpolicyrule
+            }
+        
+            [hashtable]$retentionpolicyrule = @{
+                numberOfInstances = $retentionPolicynumberOfInstances
+                distance = $retentionPolicydistance
+            }
+        
+            [hashtable]$body = @{
+                source = $source
+                destination = $destination
+                description = $description
+                rpo = $rpo
+                dataConnectionType = $dataConnectionType
+                quiesced = $quiesced
+                retentionPolicy = $retentionpolicy
+                targetDiskType = $targetDiskType
+                initialSyncTime = $initialSyncTime
+                isMigration = $isMigration
+            }
+        
+            $json_body = convertto-json -InputObject $body -Depth 4
+        
+            Write-Verbose ("Message body contains : $body")
+            Write-Verbose ("JSON : ' $json_body") 
+        
+            $UriParams = @{
+                QueryPath = 'vapp-replications'
+            }
+        
+            $uri = New-VCAVUrl @UriParams
+        
+            $Headers = @{ } 
+            $Token = Get-VCAVToken
+        
+            if ($Token -is [array]) { $Token = $Token[0] }
+            $Headers.Add('X-VCAV-Auth', $Token)
+            $Headers.Add('Accept', 'application/vnd.vmware.h4-v3+json;charset=UTF-8')
+
+        
+            $InvokeParams = @{
+                Method    = 'POST'
+                Body      = $json_body
+                Uri       = $uri  
+                Headers   = $Headers
+                ContentType = 'application/json'
+            }
+    
+            Write-Verbose ("Calling API with parameters : $InvokeParams")
+        }
+        
+        process {
+            Try {
+                $result = Invoke-RestMethod @InvokeParams -ErrorAction Stop
+                return $result
+            }
+            Catch {
+                Write-Error ("vCloud Availability API error: $($_.Exception.Message)")
+                Write-Verbose "$_"
+                }
+                Break
+        }
 
     }
 
