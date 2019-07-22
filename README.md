@@ -229,17 +229,60 @@ isMigration    : False
 overallHealth  : GREEN
 ```
 
-## New-VCAVReplication
+## Pause-VCAVReplication
+
+VCAVReplication
+
+Output:
+
+A `PSCustomObject` with the returned API data or an error if the request was not successfully submitted.
+
+
+Example:
+
+```PowerShell
+-VCAVReplication -SourcevAppName 'MyReplicatedvApp'
+```
+
+## Resume-VCAVReplication
+
+VCAVReplication
+
+Output:
+
+A `PSCustomObject` with the returned API data or an error if the request was not successfully submitted.
+
+Example:
+
+```PowerShell
+-VCAVReplication -SourcevAppName 'MyReplicatedvApp'
+```
+
+## Disable-VCAVReplication
+
+Disable-VCAVReplication removes/unconfigures replication for an existing VM or vApp replication. 
+
+Output:
+
+A `PSCustomObject` with the returned API data or an error if the request was not successfully submitted.
+
+Example:
+
+```PowerShell
+-VCAVReplication -SourcevAppName 'MyReplicatedvApp'
+```
+
+## Enable-VCAVReplication
 
 Example:
 
 ```PowerShell
 $splat = @{
     sourcetype = 'vapp'
-    sourcesite = 'CCL-North-Island'
+    sourcesite = 'Cloud-North-Island'
     sourcevappId = '098d434f-a662-46f7-a9c1-850ff24ed158'
     destinationtype = 'vcloud'
-    destinationsite = 'CCL-South-Island'
+    destinationsite = 'Cloud-South-Island'
     destinationvdc = '9def03c1-e3a6-47e2-86c8-78bb25b8d1ed'
     destinationstorageProfile = '*'
     description = 'Replicated VM'

@@ -471,12 +471,190 @@ Function Test-VCAVDestOrgVDCStoragePolicy {
 }
 
 
+
+function Suspend-VCAVReplication {
+    <#
+    .SYNOPSIS
+    Pauses an existing replication via the vCloud Availability (VCAV) API
+    .DESCRIPTION
+    Pause-VCAVReplication pauses an existing VM or vApp replication, returning a task object.
+    (see Examples).
+    .PARAMETER SourcevAppName
+    The name of the vapp
+    .OUTPUTS
+    A PSCustomObject containing the task ID from the API call or an error.
+    .EXAMPLE
+    Pause a vApp replication betwen vCloud Director sites
+    Suspend-VCAVReplication -SourcevAppName 'vApp' 
+    .NOTES
+
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory=$true,ValueFromPipeline=$true)][string]$sourcevappname
+    )
+    
+    begin {
+        if ($PSCmdlet.SessionState.PSVariable.GetValue('VCAVIsConnected') -ne $true) # Not authenticated to API
+        { Write-Error ("Not connected to VCAV API, authenticate first with Connect-VCAV"); Break }
+        
+        #Confirm vApp is replicated, grab replicaitonID
+        $sourcerepid = (Invoke-VCAVQuery -QueryPath 'vapp-replications' -Filter @{vappName='$sourcevappname'}).items.vmReplications.ID
+
+        if (($sourcerepid) -eq $false) 
+        { Write-Error ("Invalid vApp Name $sourcevappname"); Break }
+   
+        $UriParams = @{
+            QueryPath = "/vapp-replications/$sourcerepid/pause"
+        }
+    
+        $uri = New-VCAVUrl @UriParams
+    
+        $Headers = @{ } 
+        $Token = Get-VCAVToken
+    
+        if ($Token -is [array]) { $Token = $Token[0] }
+        $Headers.Add('X-VCAV-Auth', $Token)
+        $Headers.Add('Accept', 'application/vnd.vmware.h4-v3+json;charset=UTF-8')
+ 
+        $InvokeParams = @{
+            Method    = 'POST'
+            Uri       = $uri  
+            Headers   = $Headers
+            ContentType = 'application/json'
+        }
+
+        Write-Verbose ("Calling API with parameters : $InvokeParams")
+    }
+
+    process {
+        Try {
+            $result = Invoke-RestMethod @InvokeParams -ErrorAction Stop
+            return $result
+        }
+        Catch {
+            Write-Error ("vCloud Availability API error: $($_.Exception.Message)")
+            Write-Verbose "$_"
+            }
+            Break
+                    
+    }
+    
+    end {
+    }
+}
+
+function Resume-VCAVReplication {
+    <#
+    .SYNOPSIS
+    Resumes a paused replication via the vCloud Availability (VCAV) API
+    .DESCRIPTION
+    Resume-VCAVReplication resumes an existing VM or vApp replication, returning a task object.
+    (see Examples).
+    .PARAMETER SourcevAppName
+    The name of the vapp
+    .OUTPUTS
+    A PSCustomObject containing the task ID from the API call or an error.
+    .EXAMPLE
+    Resumes a vApp replication betwen vCloud Director sites
+    Resume-VCAVReplication -SourcevAppName 'vApp' 
+    .NOTES
+
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory=$true,ValueFromPipeline=$true)][string]$sourcevappname
+    )
+    
+    begin {
+        if ($PSCmdlet.SessionState.PSVariable.GetValue('VCAVIsConnected') -ne $true) # Not authenticated to API
+        { Write-Error ("Not connected to VCAV API, authenticate first with Connect-VCAV"); Break }
+        
+        #Confirm vApp is replicated, grab replicaitonID
+        $sourcerepid = (Invoke-VCAVQuery -QueryPath 'vapp-replications' -Filter @{vappName='$sourcevappname'}).items.vmReplications.ID
+
+        if (($sourcerepid) -eq $false) 
+        { Write-Error ("Invalid vApp Name $sourcevappname"); Break }
+   
+        $UriParams = @{
+            QueryPath = "/vapp-replications/$sourcerepid/resume"
+        }
+    
+        $uri = New-VCAVUrl @UriParams
+    
+        $Headers = @{ } 
+        $Token = Get-VCAVToken
+    
+        if ($Token -is [array]) { $Token = $Token[0] }
+        $Headers.Add('X-VCAV-Auth', $Token)
+        $Headers.Add('Accept', 'application/vnd.vmware.h4-v3+json;charset=UTF-8')
+ 
+        $InvokeParams = @{
+            Method    = 'POST'
+            Uri       = $uri  
+            Headers   = $Headers
+            ContentType = 'application/json'
+        }
+
+        Write-Verbose ("Calling API with parameters : $InvokeParams")
+    }
+
+    process {
+        Try {
+            $result = Invoke-RestMethod @InvokeParams -ErrorAction Stop
+            return $result
+        }
+        Catch {
+            Write-Error ("vCloud Availability API error: $($_.Exception.Message)")
+            Write-Verbose "$_"
+            }
+            Break
+                    
+    }
+    
+    end {
+    }
+}
+
+function x-VCAVReplication {
+    <#
+    .SYNOPSIS
+     an existing replication via the vCloud Availability (VCAV) API
+    .DESCRIPTION
+    Disable-VCAVReplication removes and existing VM or vApp replication, returning a task object.
+    (see Examples).
+    .PARAMETER SourcevAppName
+    The name of the vapp
+    .OUTPUTS
+    A PSCustomObject containing the task ID from the API call or an error.
+    .EXAMPLE
+    Disable a vApp replication betwen vCloud Director sites
+    Disable-VCAVReplication -SourcevAppName 'vApp' 
+    .NOTES
+    Currently not implemented.
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory=$true,ValueFromPipeline=$true)][string]$sourcevappname
+    )
+    
+    begin {
+    }
+    
+    process {
+        Write-Output "Not yet implemented"
+    }
+    
+    end {
+    }
+}
+
 Function Enable-VCAVReplication {
     <#
     .SYNOPSIS
     Configure a new replication via the vCloud Availability (VCAV) API
     .DESCRIPTION
-    New-VCAVReplication configures a new VM or vApp replication, returning the replication 
+    Enable-VCAVReplication configures a new VM or vApp replication, returning the replication 
     as a PSCustomObject. Currently only supports vCloud Director
     site to site replication and only VM replications (see Examples).
     .PARAMETER SourceType
@@ -497,7 +675,7 @@ Function Enable-VCAVReplication {
     A PSCustomObject containing the resources from the API call or an error.
     .EXAMPLE
     Create a new vApp replication betwen vCloud Director sites
-    New-VCAVReplication -SourceType 'vApp' -SourceSite 'site1' -SourcevAppName 'MyvApp'
+    Enable-VCAVReplication -SourceType 'vApp' -SourceSite 'site1' -SourcevAppName 'MyvApp'
     -DestinationType 'vCloud' -DestinationSite 'site2' - DestinationVDC 'My Org VDC' 
     -DestinationStorageProfile 'My Storage Profile'
     .NOTES
@@ -646,24 +824,60 @@ function Disable-VCAVReplication {
     A PSCustomObject containing the resources from the API call or an error.
     .EXAMPLE
     Disable an existing replication betwen vCloud Director sites
-    Disable-VCAVReplication -vApp 'MyVapp'
+    Disable-VCAVReplication -SurcevAppName 'MyVapp'
     .NOTES
+    Not yet implimented
     #>
 
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory=$true)][string]$vAppName
+        [Parameter(Mandatory=$true,ValueFromPipeline=$true)][string]$sourcevappname
     )
     
     begin {
-    }
+        if ($PSCmdlet.SessionState.PSVariable.GetValue('VCAVIsConnected') -ne $true) # Not authenticated to API
+        { Write-Error ("Not connected to VCAV API, authenticate first with Connect-VCAV"); Break }
+        
+        #Confirm vApp is replicated, grab replicaitonID
+        $sourcerepid = (Invoke-VCAVQuery -QueryPath 'vapp-replications' -Filter @{vappName='$sourcevappname'}).items.vmReplications.ID
+
+        if (($sourcerepid) -eq $false) 
+        { Write-Error ("Invalid vApp Name $sourcevappname"); Break }
+   
+        $UriParams = @{
+            QueryPath = "/vapp-replications/$sourcerepid"
+        }
     
+        $uri = New-VCAVUrl @UriParams
+    
+        $Headers = @{ } 
+        $Token = Get-VCAVToken
+    
+        if ($Token -is [array]) { $Token = $Token[0] }
+        $Headers.Add('X-VCAV-Auth', $Token)
+        $Headers.Add('Accept', 'application/vnd.vmware.h4-v3+json;charset=UTF-8')
+ 
+        $InvokeParams = @{
+            Method    = 'DELETE'
+            Uri       = $uri  
+            Headers   = $Headers
+            ContentType = 'application/json'
+        }
+
+        Write-Verbose ("Calling API with parameters : $InvokeParams")
+    }
+
     process {
-        $result = Invoke-VCAVQuery -QueryPath 'replications' -Filter @{vappName=$vAppName}
-        if (!$result){}
-
-
-
+        Try {
+            $result = Invoke-RestMethod @InvokeParams -ErrorAction Stop
+            return $result
+        }
+        Catch {
+            Write-Error ("vCloud Availability API error: $($_.Exception.Message)")
+            Write-Verbose "$_"
+            }
+            Break
+                    
     }
     
     end {
