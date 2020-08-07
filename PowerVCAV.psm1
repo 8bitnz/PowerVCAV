@@ -47,7 +47,8 @@ in the $Global:DefaultCIServers array.
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)][string]$VCAVHost,
-        [Parameter()][string]$VCDHost
+        [Parameter()][string]$VCDHost,
+        [Parameter()][switch]$PromptCredentials
     )
      
     # Check if we are already connected to this VCAVHost:
@@ -77,11 +78,25 @@ in the $Global:DefaultCIServers array.
         $vCDSecret = $Global:DefaultCIServers.SessionSecret
     }
 
-    # Attempt to establish initial/primary connection to the vCAV API:
-    $AuthBody = [PSCustomObject]@{
-        type      = "vcdCookie"
-        vcdCookie = $vcdSecret
-    } | ConvertTo-Json -Compress
+    #Workaround for current issue with VCD Token auth not working
+    #Don't do this, it's terrible.
+    if ($PromptCredentials){
+       $vcavuser = Read-Host -Prompt 'vCAV Username: '
+       $vcavpass = Read-Host -Prompt 'vCAV Password: '
+
+       $AuthBody = [PSCustomObject]@{
+        type        = "vcdCredentials"
+        vcdUser     = $vcavuser
+        vcdPassword = $vcavpass
+        } | ConvertTo-Json -Compress
+    }
+    else {
+        # Attempt to establish initial/primary connection to the vCAV API:
+        $AuthBody = [PSCustomObject]@{
+            type      = "vcdCookie"
+            vcdCookie = $vcdSecret
+        } | ConvertTo-Json -Compress
+    }
 
     try {
         $PriVCAV = Invoke-WebRequest -Uri "https://$VCAVHost/sessions" -Method Post -ContentType 'application/json' -Body $AuthBody

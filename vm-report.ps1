@@ -66,14 +66,26 @@ foreach ($rep in $unique_replications.Values) {
     $numinstances = $instances.Count
     $repsperday = (24 / ($rep.settings.rpo / 60))
     $totalxfer = ($instances | Measure-Object -Property transferBytes -Sum).Sum
-    $avgxfer = $totalxfer / $numinstances
-    $avgxferday = $avgxfer * $repsperday
+    
+    if ($numinstances -ne 0){
+        $avgxfer = $totalxfer / $numinstances
+        $avgxferday = $avgxfer * $repsperday
+    } else { 
+        $avgxfer = 0
+        $avgxferday = 0
+    }
 
     if ($rep.destinationState.currentRpoViolation -eq 0) {
          $rpoViolated = "No"
     } else {
          $rpoViolated = $rep.destinationState.currentRpoViolation.toString() + " mins"
     }
+
+    #If (!($rep.destinationState.latestInstance.transferSeconds)){ $rep.destinationState.latestInstance.transferSeconds = 0}
+    #If (!($rep.destinationState.latestInstance.transferBytes)){$rep.destinationState.latestInstance.transferBytes = 0}
+    #write-host "timestamp : " $rep.destinationState.latestInstance.timestamp
+    #If ($rep.destinationState.latestInstance.timestamp = ''){$rep.destinationState.latestInstance.timestamp = Get-Date}
+    #write-host "timestamp : " $rep.destinationState.latestInstance.timestamp
 
     $repObj = [PSCustomObject]@{
          Org            = $rep.destination.org
@@ -85,15 +97,15 @@ foreach ($rep in $unique_replications.Values) {
          Paused         = $rep.isPaused
          RPOviolated    = $rpoViolated
          Quiesced       = $rep.settings.quiesced
-         LastStatus     = LocalTime($rep.destinationState.latestInstance.timestamp).toString()
-         LastXfer       = ByteUnits($rep.destinationState.latestInstance.transferBytes).toString()
-         LastXferTime   = ($rep.destinationState.latestInstance.transferSeconds).toString() + " sec"
          DataConnection = $rep.dataConnectionState
          Migration      = $rep.isMigration
          overallHealth  = $rep.overallHealth
          Instances      = $numinstances
          AverageXfer    = (ByteUnits($avgxferday)).toString() + "/day"
          SpaceRequired  = ByteUnits($rep.destinationState.spaceRequirement)
+         LastStatus     = LocalTime($rep.destinationState.latestInstance.timestamp).toString()
+         LastXfer       = ByteUnits($rep.destinationState.latestInstance.transferBytes).toString()
+         LastXferTime   = ($rep.destinationState.latestInstance.transferSeconds).toString() + " sec"
     }
     $reps += $repObj
 }
