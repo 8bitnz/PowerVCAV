@@ -631,6 +631,7 @@ function Resume-VCAVReplication {
     }
 }
 
+#Skeleton for future functions
 function x-VCAVReplication {
     <#
     .SYNOPSIS
